@@ -1,6 +1,5 @@
 #!/bin/bash
-# rebuild_gos_final.sh
-# === Build GoSpot final & amélioré ===
+# rebuild_gos_final.sh - Build GoSpot CLI complet & amélioré
 
 ROOT_DIR=$(pwd)
 echo "=== Build GoSpot (final & amélioré) — racine: $ROOT_DIR ==="
@@ -14,32 +13,35 @@ echo "[2/12] Création __init__.py..."
 touch gospot_pkg/__init__.py
 touch gospot_pkg/modules/__init__.py
 
-# 3. Écriture modules/system.py
+# 3. modules/system.py
 echo "[3/12] Écriture modules/system.py..."
 cat > gospot_pkg/modules/system.py << 'PYTHON'
-import os
 import subprocess
 
 def check_package(pkg):
-    """Check if a system package is installed."""
-    result = subprocess.getoutput(f"which {pkg}")
-    return result != ""
+    """Vérifie si un package système est installé"""
+    return subprocess.getoutput(f"which {pkg}") != ""
 PYTHON
 
-# 4. Écriture modules/ui.py
+# 4. modules/ui.py
 echo "[4/12] Écriture modules/ui.py..."
 cat > gospot_pkg/modules/ui.py << 'PYTHON'
 try:
     from rich.console import Console
+    from rich.prompt import Prompt
     console = Console()
 except ImportError:
     class Console:
         def print(self, *args, **kwargs):
             print(*args)
+    class Prompt:
+        @staticmethod
+        def ask(msg):
+            return input(msg)
     console = Console()
 PYTHON
 
-# 5. Écriture modules/network.py
+# 5. modules/network.py
 echo "[5/12] Écriture modules/network.py..."
 cat > gospot_pkg/modules/network.py << 'PYTHON'
 import subprocess
@@ -51,19 +53,19 @@ def scan_network():
         result = subprocess.getoutput("nmap -sn 192.168.1.0/24")
         console.print(result)
     except KeyboardInterrupt:
-        console.print("[!] Scan interrompu.")
+        console.print("[!] Scan interrompu")
 PYTHON
 
-# 6. Écriture modules/ssh_utils.py
+# 6. modules/ssh_utils.py
 echo "[6/12] Écriture modules/ssh_utils.py..."
 cat > gospot_pkg/modules/ssh_utils.py << 'PYTHON'
 from .ui import console
 
 def list_keys():
-    console.print("[🔐] Gestion des clés SSH (stub)...")
+    console.print("[🔐] Gestion des clés SSH (stub)")
 PYTHON
 
-# 7. Écriture modules/sysinfo.py
+# 7. modules/sysinfo.py
 echo "[7/12] Écriture modules/sysinfo.py..."
 cat > gospot_pkg/modules/sysinfo.py << 'PYTHON'
 import platform
@@ -73,7 +75,7 @@ def system_info():
     console.print(f"[⚙️] Système: {platform.system()} {platform.release()}")
 PYTHON
 
-# 8. Écriture gospot_pkg/cli.py
+# 8. gospot_pkg/cli.py
 echo "[8/12] Écriture gospot_pkg/cli.py..."
 cat > gospot_pkg/cli.py << 'PYTHON'
 import sys
@@ -81,23 +83,31 @@ import os
 from gospot_pkg.modules import system, network, ssh_utils, sysinfo, ui
 console = ui.console
 
+def detect_os():
+    prefix = os.getenv("PREFIX", "")
+    if "com.termux" in prefix:
+        return "TERMUX"
+    elif "DARWIN" in sys.platform.upper():
+        return "MACOS"
+    elif "LINUX" in sys.platform.upper():
+        return "LINUX"
+    else:
+        return "UNKNOWN"
+
 def setup_env():
     pkgs = ["openssh", "nmap", "curl", "git"]
-    prefix = os.getenv("PREFIX", "")
-    is_termux = "com.termux" in prefix
-    real_os = sys.platform.upper()
+    current_os = detect_os()
 
     for p in pkgs:
-        if is_termux:
+        if current_os == "TERMUX":
             if not system.check_package(p):
                 os.system(f"pkg install -y {p}")
-        elif "DARWIN" in real_os:
+        elif current_os == "MACOS":
             if not system.check_package(p):
                 os.system(f"brew install {p}")
-        elif "LINUX" in real_os:
+        elif current_os == "LINUX":
             if not system.check_package(p):
                 os.system(f"sudo apt install -y {p} || sudo pacman -S --noconfirm {p}")
-
     console.print("\n[✅] Configuration terminée.\n")
 
 def main_menu():
@@ -129,22 +139,21 @@ def main_menu():
             console.print("Au revoir !")
             sys.exit(0)
         else:
-            console.print("[!] Choix invalide.")
+            console.print("[!] Choix invalide")
 PYTHON
 
 # 9. Création sdk stubs
 echo "[9/12] Création sdk stubs..."
 touch gospot_pkg/sdk/{admin.sh,monitor.sh,nettools.sh,speedtest.sh,ssh.sh,sysinfo.sh,tools.sh}
 
-# 10. Création requirements.txt
+# 10. requirements.txt
 echo "[10/12] Création requirements.txt..."
 cat > requirements.txt << 'REQ'
 rich
 colorama
-ora
-chalk
 paramiko
 requests
+ora
 REQ
 
 # 11. Permissions
@@ -152,7 +161,7 @@ echo "[11/12] Permissions..."
 chmod +x gospot_pkg/cli.py
 chmod +x gospot_pkg/sdk/*
 
-# 12. Création setup.py
+# 12. setup.py
 echo "[12/12] Création setup.py..."
 cat > setup.py << 'PYSETUP'
 from setuptools import setup, find_packages
@@ -165,10 +174,9 @@ setup(
     install_requires=[
         "rich",
         "colorama",
-        "ora",
-        "chalk",
         "paramiko",
-        "requests"
+        "requests",
+        "ora"
     ],
     entry_points={
         "console_scripts": [
@@ -179,6 +187,6 @@ setup(
 )
 PYSETUP
 
-echo "[✅] Build terminé. Tu peux maintenant faire :"
+echo "[✅] Build terminé. Installer maintenant :"
 echo "pip install . --upgrade"
 echo "puis exécuter : gos"
