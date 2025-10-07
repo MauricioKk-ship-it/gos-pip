@@ -350,6 +350,10 @@ read -p "Installer les dépendances Python (requirements.txt) maintenant ? [Y/n]
 REPLY_INSTALL="${REPLY_INSTALL:-Y}"
 if [[ "$REPLY_INSTALL" =~ ^[Yy] ]]; then
   echo "[pip] Installing requirements..."
+if [ -d "/data/data/com.termux/files/usr" ]; then
+  echo "[INFO] Termux détecté : pas de mise à jour pip"
+  "${PYTHON}" -m pip install -r "${REQUIREMENTS}" --no-cache-dir
+else
   "${PYTHON}" -m pip install --upgrade pip
   "${PYTHON}" -m pip install -r "${REQUIREMENTS}"
 fi
